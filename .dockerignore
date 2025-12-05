@@ -1,0 +1,14 @@
+node_modules
+npm-debug.log
+.git
+.gitignore
+.env
+*.log
+coverage
+screenshot
+docker-build
+README.md
+.husky
+.eslintrc.js
+commitlint.config.js
+.orange-ci.yml 

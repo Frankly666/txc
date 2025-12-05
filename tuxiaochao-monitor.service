@@ -1,0 +1,18 @@
+[Unit]
+Description=兔小巢反馈监控服务
+After=network.target mysql.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/path/to/qqvip-e2e-testing
+ExecStart=/usr/bin/node /path/to/qqvip-e2e-testing/monitor.js
+Restart=always
+RestartSec=10
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=tuxiaochao-monitor
+Environment="NODE_ENV=production"
+
+[Install]
+WantedBy=multi-user.target 

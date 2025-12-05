@@ -1,0 +1,27 @@
+version: '3'
+
+services:
+  qqvip-testing:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: qqvip-testing
+    restart: unless-stopped
+    volumes:
+      - ./logs:/app/logs
+      - ./data:/app/data
+      - ./screenshot:/app/screenshot
+    environment:
+      - HUNYUAN_API_KEY=${HUNYUAN_API_KEY}
+      - WEWORK_WEBHOOK_URL=${WEWORK_WEBHOOK_URL}
+      - TEST_QQ_NUMBER=${TEST_QQ_NUMBER}
+      - TEST_QQ_PASSWORD=${TEST_QQ_PASSWORD}
+      - TASK_INTERVAL_MINUTES=${TASK_INTERVAL_MINUTES}
+      - QUERY_TIME_RANGE_MINUTES=${QUERY_TIME_RANGE_MINUTES}
+      - PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+      - PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium-browser
+    # 必须使用--no-sandbox模式运行Chrome
+    cap_add:
+      - SYS_ADMIN
+    # 指定容器工作模式，使用pm2-runtime来启动
+    command: pm2-runtime monitor.js --name tuxiaochao-monitor
