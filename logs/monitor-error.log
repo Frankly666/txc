@@ -30008,3 +30008,24 @@ Node.js v18.20.8
 加载Cookie失败: Unexpected end of JSON input
 ❌ 获取反馈数据失败: Navigation timeout of 60000 ms exceeded
 [12/25/2025, 11:29:47 AM] 定时任务执行失败: Navigation timeout of 60000 ms exceeded
+加载Cookie失败: Unexpected end of JSON input
+❌ 获取反馈数据失败: Navigation timeout of 60000 ms exceeded
+[12/25/2025, 12:04:33 PM] 定时任务执行失败: Navigation timeout of 60000 ms exceeded
+加载Cookie失败: Unexpected end of JSON input
+❌ 获取反馈数据失败: net::ERR_NETWORK_CHANGED at https://txc.qq.com/login.html
+[12/25/2025, 12:06:18 PM] 定时任务执行失败: net::ERR_NETWORK_CHANGED at https://txc.qq.com/login.html
+加载Cookie失败: Unexpected end of JSON input
+加载Cookie失败: Unexpected end of JSON input
+❌ 获取反馈数据失败: Waiting for selector `.login_account` failed: Waiting failed: 10000ms exceeded
+[12/25/2025, 12:07:30 PM] 定时任务执行失败: Waiting for selector `.login_account` failed: Waiting failed: 10000ms exceeded
+加载Cookie失败: Unexpected end of JSON input
+没有需要发送的反馈数据
+推送数据到ifeedback服务失败: 没有需要发送的反馈数据
+没有需要发送的反馈数据
+推送数据到ifeedback服务失败: 没有需要发送的反馈数据
+没有需要发送的反馈数据
+推送数据到ifeedback服务失败: 没有需要发送的反馈数据
+没有需要发送的反馈数据
+推送数据到ifeedback服务失败: 没有需要发送的反馈数据
+没有需要发送的反馈数据
+推送数据到ifeedback服务失败: 没有需要发送的反馈数据

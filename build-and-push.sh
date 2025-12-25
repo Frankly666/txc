@@ -26,7 +26,7 @@ echo ""
 
 # 构建镜像
 echo "📦 构建镜像 (AMD64 架构)..."
-podman build \
+sudo podman build \
   --platform linux/amd64 \
   -t "${FULL_IMAGE}" \
   -t "${IMAGE_REPO}:latest" \
@@ -38,7 +38,8 @@ echo ""
 
 # 推送镜像
 echo "🚀 推送镜像到仓库..."
-podman push "${FULL_IMAGE}"
+sudo podman push "${FULL_IMAGE}"
+sudo podman push "${IMAGE_REPO}:latest"
 
 echo ""
 echo "✅ 推送完成！"
