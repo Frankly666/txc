@@ -250,23 +250,39 @@ start_prod() {
     check_config
     
     # 确定使用的命令
-    local IMAGE_CHECK_CMD="$CONTAINER_CMD"
+    local RUN_CMD="$CONTAINER_CMD"
     if [ "$CONTAINER_CMD" = "podman" ] && [ "$EUID" -ne 0 ]; then
-        IMAGE_CHECK_CMD="sudo $CONTAINER_CMD"
-    fi
-    
-    # 检查镜像是否存在
-    if ! $IMAGE_CHECK_CMD images | grep -q "txc_get_data"; then
-        print_warning "未找到远程镜像，正在拉取..."
-        pull_image
-    fi
-    
-    # 检查是否已有运行的容器
-    if $CONTAINER_CMD ps -a --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
-        print_warning "容器 $CONTAINER_NAME 已存在"
-        print_info "正在停止并移除旧容器..."
-        $CONTAINER_CMD stop "$CONTAINER_NAME" 2>/dev/null || true
-        $CONTAINER_CMD rm "$CONTAINER_NAME" 2>/dev/null || true
+        # rootless 模式需要使用 sudo
+        print_info "检测到 rootless 模式，使用 sudo 运行容器..."
+        RUN_CMD="sudo $CONTAINER_CMD"
+        
+        # 检查镜像是否存在
+        if ! sudo $CONTAINER_CMD images | grep -q "txc_get_data"; then
+            print_warning "未找到远程镜像，正在拉取..."
+            pull_image
+        fi
+        
+        # 检查是否已有运行的容器
+        if sudo $CONTAINER_CMD ps -a --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
+            print_warning "容器 $CONTAINER_NAME 已存在"
+            print_info "正在停止并移除旧容器..."
+            sudo $CONTAINER_CMD stop "$CONTAINER_NAME" 2>/dev/null || true
+            sudo $CONTAINER_CMD rm "$CONTAINER_NAME" 2>/dev/null || true
+        fi
+    else
+        # 检查镜像是否存在
+        if ! $CONTAINER_CMD images | grep -q "txc_get_data"; then
+            print_warning "未找到远程镜像，正在拉取..."
+            pull_image
+        fi
+        
+        # 检查是否已有运行的容器
+        if $CONTAINER_CMD ps -a --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
+            print_warning "容器 $CONTAINER_NAME 已存在"
+            print_info "正在停止并移除旧容器..."
+            $CONTAINER_CMD stop "$CONTAINER_NAME" 2>/dev/null || true
+            $CONTAINER_CMD rm "$CONTAINER_NAME" 2>/dev/null || true
+        fi
     fi
     
     # 创建数据目录
@@ -274,7 +290,7 @@ start_prod() {
     
     # 启动容器
     print_info "正在启动容器..."
-    $CONTAINER_CMD run -d \
+    $RUN_CMD run -d \
         --name "$CONTAINER_NAME" \
         --restart unless-stopped \
         -v "$(pwd)/config.json:/app/config.json:ro" \
@@ -341,12 +357,36 @@ restart_service() {
 # 查看日志
 view_logs() {
     print_info "正在查看日志 (Ctrl+C 退出)..."
+    
+    # 检查是否使用 sudo 启动的容器
+    if [ "$CONTAINER_CMD" = "podman" ] && [ "$EUID" -ne 0 ]; then
+        if sudo $CONTAINER_CMD ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
+            sudo $CONTAINER_CMD logs -f "$CONTAINER_NAME"
+            return
+        fi
+    fi
+    
     $CONTAINER_CMD logs -f "$CONTAINER_NAME"
 }
 
 # 查看状态
 check_status() {
     print_info "正在检查服务状态..."
+    
+    # 确定使用的命令
+    local CHECK_CMD="$CONTAINER_CMD"
+    if [ "$CONTAINER_CMD" = "podman" ] && [ "$EUID" -ne 0 ]; then
+        # 先检查 sudo 容器
+        if sudo $CONTAINER_CMD ps --format '{{.Names}}' 2>/dev/null | grep -q "^${CONTAINER_NAME}$"; then
+            print_success "容器正在运行 (sudo模式)"
+            echo
+            sudo $CONTAINER_CMD ps --filter "name=${CONTAINER_NAME}" --format "table {{.Names}}\t{{.Status}}\t{{.Image}}"
+            echo
+            print_info "健康检查状态:"
+            sudo $CONTAINER_CMD inspect --format='{{.State.Health.Status}}' "$CONTAINER_NAME" 2>/dev/null || echo "未配置健康检查"
+            return
+        fi
+    fi
     
     if $CONTAINER_CMD ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
         print_success "容器正在运行"
