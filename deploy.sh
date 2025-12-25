@@ -136,17 +136,28 @@ init_config() {
 pull_config() {
     print_info "正在从远程镜像提取配置模板..."
     
-    # 检查镜像是否存在
-    if ! $CONTAINER_CMD images | grep -q "txc_get_data"; then
-        print_warning "未找到镜像，正在拉取..."
-        pull_image
+    # 确定使用的命令（rootless podman 需要 sudo）
+    local CMD="$CONTAINER_CMD"
+    if [ "$CONTAINER_CMD" = "podman" ] && [ "$EUID" -ne 0 ]; then
+        # 检查 sudo 镜像是否存在
+        if ! sudo $CONTAINER_CMD images | grep -q "txc_get_data"; then
+            print_warning "未找到镜像，正在拉取..."
+            pull_image
+        fi
+        CMD="sudo $CONTAINER_CMD"
+    else
+        # 检查镜像是否存在
+        if ! $CONTAINER_CMD images | grep -q "txc_get_data"; then
+            print_warning "未找到镜像，正在拉取..."
+            pull_image
+        fi
     fi
     
     # 使用 podman/docker run 直接提取
     print_info "提取配置模板文件..."
-    $CONTAINER_CMD run --rm "$REMOTE_IMAGE" cat /app/config.template.json > "$CONFIG_TEMPLATE" 2>/dev/null
+    $CMD run --rm "$REMOTE_IMAGE" cat /app/config.template.json > "$CONFIG_TEMPLATE" 2>/dev/null
     
-    if [ -f "$CONFIG_TEMPLATE" ]; then
+    if [ -f "$CONFIG_TEMPLATE" ] && [ -s "$CONFIG_TEMPLATE" ]; then
         print_success "配置模板已提取: $CONFIG_TEMPLATE"
         
         # 如果 config.json 不存在，则创建
@@ -171,7 +182,13 @@ pull_image() {
     print_info "正在拉取远程镜像..."
     print_info "镜像地址: $REMOTE_IMAGE"
     
-    $CONTAINER_CMD pull "$REMOTE_IMAGE"
+    # 使用 sudo 避免 rootless 模式的 UID/GID 映射问题
+    if [ "$CONTAINER_CMD" = "podman" ] && [ "$EUID" -ne 0 ]; then
+        print_info "检测到 rootless 模式，使用 sudo 拉取镜像..."
+        sudo $CONTAINER_CMD pull "$REMOTE_IMAGE"
+    else
+        $CONTAINER_CMD pull "$REMOTE_IMAGE"
+    fi
     
     print_success "镜像拉取完成！"
     print_info "运行 './deploy.sh pull-config' 提取配置模板"
@@ -232,8 +249,14 @@ start_prod() {
     
     check_config
     
+    # 确定使用的命令
+    local IMAGE_CHECK_CMD="$CONTAINER_CMD"
+    if [ "$CONTAINER_CMD" = "podman" ] && [ "$EUID" -ne 0 ]; then
+        IMAGE_CHECK_CMD="sudo $CONTAINER_CMD"
+    fi
+    
     # 检查镜像是否存在
-    if ! $CONTAINER_CMD images | grep -q "txc_get_data"; then
+    if ! $IMAGE_CHECK_CMD images | grep -q "txc_get_data"; then
         print_warning "未找到远程镜像，正在拉取..."
         pull_image
     fi
