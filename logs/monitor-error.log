@@ -30005,3 +30005,6 @@ Node.js v18.20.8
 推送数据到ifeedback服务失败: 没有需要发送的反馈数据
 没有需要发送的反馈数据
 推送数据到ifeedback服务失败: 没有需要发送的反馈数据
+加载Cookie失败: Unexpected end of JSON input
+❌ 获取反馈数据失败: Navigation timeout of 60000 ms exceeded
+[12/25/2025, 11:29:47 AM] 定时任务执行失败: Navigation timeout of 60000 ms exceeded

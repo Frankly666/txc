@@ -1,35 +1,26 @@
 {
-  "name": "qqvip-e2e-testing",
+  "name": "txc-feedback-crawler",
   "version": "2.0.0",
-  "description": "qqvip ui test",
-  "main": "index.spec.js",
+  "description": "兔小巢反馈数据爬取工具 - 自动爬取兔小巢反馈并推送到ifeedback",
+  "main": "monitor.js",
   "scripts": {
-    "test": "rm -f screenshot/*.png && mocha --recursive --timeout 60000 --reporter mochawesome --reporter-options reportDir=./coverage/mochawesome/e2e ./index.spec.js",
-    "lint": "eslint --fix --ext .js,.ts cases constants",
+    "lint": "eslint --fix --ext .js constants utils",
     "prepare": "husky install",
-    "start:schedule": "node ./scheduledTask.js",
-    "txc": "node ./scheduledTask.js",
+    "start": "node ./scheduledTask.js",
     "monitor": "node ./monitor.js",
     "start:prod": "pm2 start monitor.js --name \"tuxiaochao-monitor\" --log monitor-output.log --error monitor-error.log"
   },
   "repository": {
     "type": "git",
-    "url": "https://git.woa.com/qqvip-web/group1/qqvip-e2e-testing.git"
+    "url": "https://github.com/Frankly666/txc.git"
   },
-  "author": "",
+  "author": "Frankly666",
   "license": "ISC",
   "devDependencies": {
-    "@babel/core": "^7.20.12",
     "@commitlint/cli": "^17.4.0",
     "@commitlint/config-conventional": "^17.4.0",
-    "@tencent/eslint-config-tencent": "^1.0.4",
-    "chai": "^4.3.4",
     "eslint": "^8.31.0",
-    "husky": "^8.0.3",
-    "img-entropy": "^2.0.1",
-    "mocha": "^9.1.3",
-    "mochawesome": "^7.0.1",
-    "puppeteer-core": "^13.0.0"
+    "husky": "^8.0.3"
   },
   "dependencies": {
     "axios": "^1.8.4",

@@ -445,7 +445,7 @@ async function pushResponseData(responseData) {
     });
     
     // 创建FeedbackSender实例并直接推送
-    const sender = new FeedbackSender('qqvip');
+    const sender = new FeedbackSender('txc');
     const result = await sender.sendToIfeedback(formattedData);
     
     if (result.code === 200) {

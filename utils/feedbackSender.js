@@ -15,7 +15,7 @@ class FeedbackSender {
    * @param {string} appName - 应用英文名
    * @param {string} apiUrl - ifeedback API URL
    */
-  constructor(appName = 'qqvip', apiUrl = 'http://ifeedback.woa.com/feedback_backend/post_data') {
+  constructor(appName = 'txc', apiUrl = 'http://ifeedback.woa.com/feedback_backend/post_data') {
     this.appName = appName;
     this.apiUrl = apiUrl;
     this.sentRecordsPath = path.join(__dirname, '../data/sent_feedback_records.json');
