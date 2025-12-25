@@ -1,14 +1,39 @@
 # 兔小巢反馈数据爬取工具
 
-快速部署指南 - 3分钟上手
+**一个脚本搞定所有部署** - 3分钟上手
 
 ---
 
 ## 🚀 快速开始
 
-### 方式一：本地构建部署（开发测试）
+### 方式一：生产部署（推荐）⭐
 
-适合：本地开发、测试环境
+**完全独立，无需代码仓库，只需一个脚本**
+
+```bash
+# 1. 下载部署脚本
+curl -O https://raw.githubusercontent.com/Frankly666/txc/feature/add-client-info-fields/deploy.sh
+chmod +x deploy.sh
+
+# 2. 拉取镜像
+./deploy.sh pull
+
+# 3. 提取配置模板（镜像自包含）
+./deploy.sh pull-config
+
+# 4. 编辑配置
+vim config.json
+
+# 5. 启动服务
+./deploy.sh start-prod
+
+# 6. 查看日志
+./deploy.sh logs
+```
+
+### 方式二：本地开发
+
+适合：代码开发、本地测试
 
 ```bash
 # 1. 克隆代码
@@ -18,72 +43,14 @@ cd txc
 # 2. 初始化配置
 ./deploy.sh init
 
-# 3. 编辑配置文件
-vim config.json  # 填入账号密码等信息
+# 3. 编辑配置
+vim config.json
 
-# 4. 启动服务（会自动构建镜像）
+# 4. 启动服务（自动构建）
 ./deploy.sh start
 
 # 5. 查看日志
 ./deploy.sh logs
-```
-
-### 方式二：拉取镜像部署（生产推荐）
-
-适合：生产环境、快速部署
-
-```bash
-# 1. 登录镜像仓库（首次需要）
-podman login csighub.tencentyun.com
-# 输入用户名和密码
-
-# 2. 拉取最新镜像
-podman pull csighub.tencentyun.com/franklynxu/txc_get_data:latest
-
-# 3. 查看已下载的镜像
-podman images | grep txc_get_data
-
-# 4. 准备配置文件（从代码仓库获取模板）
-wget https://raw.githubusercontent.com/Frankly666/txc/feature/add-client-info-fields/config.template.json
-cp config.template.json config.json
-vim config.json  # 填入你的配置
-
-# 5. 创建数据目录
-mkdir -p logs data screenshot
-
-# 6. 启动容器
-podman run -d --name txc-feedback \
-  -v $(pwd)/config.json:/app/config.json:ro \
-  -v $(pwd)/logs:/app/logs \
-  -v $(pwd)/data:/app/data \
-  -v $(pwd)/screenshot:/app/screenshot \
-  --cap-add SYS_ADMIN \
-  --restart unless-stopped \
-  csighub.tencentyun.com/franklynxu/txc_get_data:latest
-
-# 7. 查看运行状态
-podman ps | grep txc-feedback
-podman logs -f txc-feedback
-```
-
-### 方式三：指定版本部署（稳定版本）
-
-```bash
-# 1. 查看可用版本
-# 访问镜像仓库或查看 CHANGELOG.md
-
-# 2. 拉取指定版本
-podman pull csighub.tencentyun.com/franklynxu/txc_get_data:v2.0.0-config-deployment-amd64
-
-# 3. 启动容器（替换镜像tag）
-podman run -d --name txc-feedback-v2 \
-  -v $(pwd)/config.json:/app/config.json:ro \
-  -v $(pwd)/logs:/app/logs \
-  -v $(pwd)/data:/app/data \
-  -v $(pwd)/screenshot:/app/screenshot \
-  --cap-add SYS_ADMIN \
-  --restart unless-stopped \
-  csighub.tencentyun.com/franklynxu/txc_get_data:v2.0.0-config-deployment-amd64
 ```
 
 ---
@@ -108,63 +75,53 @@ podman run -d --name txc-feedback-v2 \
 
 ---
 
-## 🛠️ 常用命令
+## 🛠️ 所有命令
 
-### 镜像管理
+### 一键脚本 `./deploy.sh`
 
 ```bash
-# 查看本地镜像
-podman images | grep txc_get_data
+# 配置管理
+./deploy.sh init          # 初始化配置（从本地模板）
+./deploy.sh pull-config   # 从镜像提取配置模板（独立部署必备）
 
-# 拉取最新版本
-podman pull csighub.tencentyun.com/franklynxu/txc_get_data:latest
+# 镜像管理
+./deploy.sh pull          # 拉取远程镜像
+./deploy.sh build         # 构建本地镜像
 
-# 拉取指定版本
-podman pull csighub.tencentyun.com/franklynxu/txc_get_data:v2.0.0-config-deployment-amd64
+# 服务启动
+./deploy.sh start         # 启动服务（本地构建模式）
+./deploy.sh start-prod    # 启动服务（生产镜像模式）
 
-# 删除旧镜像
-podman rmi <IMAGE_ID>
+# 运维管理
+./deploy.sh stop          # 停止服务
+./deploy.sh restart       # 重启服务
+./deploy.sh upgrade       # 一键升级（停止→拉取→启动）
+./deploy.sh logs          # 查看实时日志
+./deploy.sh status        # 查看服务状态
+./deploy.sh enter         # 进入容器调试
+./deploy.sh test          # 运行测试
+./deploy.sh clean         # 清理容器和镜像
 ```
 
-### 容器管理（生产环境）
+### 直接使用容器命令（可选）
 
 ```bash
-# 查看运行中的容器
-podman ps
-
-# 查看所有容器（包括停止的）
+# 查看容器
 podman ps -a
 
-# 查看实时日志
+# 查看日志
 podman logs -f txc-feedback
 
-# 停止容器
+# 停止/启动/重启
 podman stop txc-feedback
-
-# 启动容器
 podman start txc-feedback
-
-# 重启容器
 podman restart txc-feedback
 
 # 删除容器
 podman rm txc-feedback
 
-# 进入容器调试
+# 进入容器
 podman exec -it txc-feedback sh
-```
-
-### deploy.sh 脚本（本地开发）
-
-```bash
-./deploy.sh init     # 初始化配置文件
-./deploy.sh start    # 构建并启动服务
-./deploy.sh stop     # 停止服务
-./deploy.sh restart  # 重启服务
-./deploy.sh logs     # 查看日志
-./deploy.sh status   # 查看状态
-./deploy.sh enter    # 进入容器
-./deploy.sh clean    # 清理容器和镜像
 ```
 
 ---
@@ -189,54 +146,43 @@ podman exec -it txc-feedback sh
 
 ## ❓ 常见问题
 
-**Q: 如何登录镜像仓库？**
+**Q: 如何完全独立部署（不依赖代码仓库）？**
 ```bash
-podman login csighub.tencentyun.com
-# 输入你的用户名和密码（Token）
+# 只需要 deploy.sh 一个文件
+curl -O https://raw.githubusercontent.com/Frankly666/txc/feature/add-client-info-fields/deploy.sh
+chmod +x deploy.sh
+./deploy.sh pull
+./deploy.sh pull-config
+vim config.json
+./deploy.sh start-prod
 ```
 
-**Q: 如何查看可用的镜像版本？**
+**Q: 如何升级到最新版本？**
 ```bash
-# 方式1：查看本地已下载的镜像
-podman images | grep txc_get_data
+# 使用 deploy.sh（推荐）
+./deploy.sh upgrade
 
-# 方式2：查看 CHANGELOG.md 文件中的版本历史
-cat CHANGELOG.md
+# 或手动操作
+./deploy.sh stop
+./deploy.sh pull
+./deploy.sh start-prod
 ```
 
-**Q: 启动失败？**
+**Q: 启动失败如何排查？**
 ```bash
-# 1. 检查配置文件是否存在
-ls -la config.json
-
-# 2. 检查配置文件内容
+# 1. 检查配置文件
 cat config.json
 
-# 3. 查看容器日志
-podman logs -f txc-feedback
+# 2. 查看容器日志
+./deploy.sh logs
 
-# 4. 检查容器状态
-podman ps -a | grep txc-feedback
+# 3. 检查容器状态
+./deploy.sh status
 ```
 
-**Q: 如何升级到新版本？**
+**Q: 如何同时运行多个版本？**
 ```bash
-# 本地部署方式
-./deploy.sh stop
-git pull
-./deploy.sh start
-
-# 生产部署方式
-podman stop txc-feedback
-podman rm txc-feedback
-podman pull csighub.tencentyun.com/franklynxu/txc_get_data:latest
-podman images  # 确认新镜像已下载
-# 然后重新运行启动命令（参考上面"方式二"的第6步）
-```
-
-**Q: 如何在不影响旧版本的情况下测试新版本？**
-```bash
-# 使用不同的容器名和数据目录
+# 修改容器名称和数据目录
 mkdir -p logs_v2 data_v2 screenshot_v2
 
 podman run -d --name txc-feedback-v2 \
@@ -246,13 +192,11 @@ podman run -d --name txc-feedback-v2 \
   -v $(pwd)/screenshot_v2:/app/screenshot \
   --cap-add SYS_ADMIN \
   --restart unless-stopped \
-  csighub.tencentyun.com/franklynxu/txc_get_data:latest
-
-# 这样新旧版本可以同时运行，互不影响
+  csighub.tencentyun.com/franklynxu/txc_get_data:v2.0.0-config-deployment-amd64
 ```
 
-**Q: 平台架构不匹配（ARM vs AMD64）？**  
-所有镜像已构建为 AMD64 架构，适用于生产环境的 Linux 服务器
+**Q: 支持 Docker 还是 Podman？**  
+两者都支持，脚本会自动检测并使用
 
 ---
 
