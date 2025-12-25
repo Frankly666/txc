@@ -1,6 +1,6 @@
 {
   "name": "qqvip-e2e-testing",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "qqvip ui test",
   "main": "index.spec.js",
   "scripts": {

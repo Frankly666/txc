@@ -1,0 +1,18 @@
+{
+  "version": "1.0.0",
+  "comment": "兔小巢反馈数据爬取项目配置文件",
+  "account": {
+    "qq_number": "你的QQ号码",
+    "qq_password": "你的QQ密码"
+  },
+  "task": {
+    "interval_minutes": 15,
+    "query_time_range_minutes": 30
+  },
+  "notification": {
+    "wework_webhook_url": "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=你的企业微信机器人key"
+  },
+  "api": {
+    "hunyuan_api_key": "你的混元API密钥(可选)"
+  }
+}

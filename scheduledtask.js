@@ -6,14 +6,19 @@ require('dotenv').config();
 const cron = require('node-cron');
 const { crawlAndStoreFeedback } = require('./utils/tuxiaochaoLogin');
 const { sendAlarmMessage, sendStatusMessage } = require('./utils/wechatRobot');
+const { getConfig } = require('./config_loader');
+
+// 加载配置
+const config = getConfig();
+config.printConfig();
 
 // 定时任务间隔时间（分钟），默认为30分钟
-// 可以通过环境变量TASK_INTERVAL_MINUTES配置
+// 可以通过config.json或环境变量TASK_INTERVAL_MINUTES配置
 // 此变量控制：
 // 1. 定时任务的执行频率（每隔多少分钟执行一次）
 // 2. 数据爬取的时间范围（爬取最近多少分钟的数据）
 // 注意：当TASK_INTERVAL_MINUTES大于60时，时间范围将自动调整为'day'（一天）
-const TASK_INTERVAL_MINUTES = parseInt(process.env.TASK_INTERVAL_MINUTES || '30', 10);
+const TASK_INTERVAL_MINUTES = config.get('task.interval_minutes');
 
 // 设置失败计数器和阈值
 let consecutiveFailures = 0;
@@ -33,8 +38,8 @@ async function runTask() {
   
   try {
     // 使用可配置的时间范围参数，默认30分钟（与test脚本保持一致）
-    // 可以通过环境变量QUERY_TIME_RANGE_MINUTES配置查询时间范围
-    const timeRange = parseInt(process.env.TASK_INTERVAL_MINUTES || '30', 10);
+    // 可以通过config.json或环境变量QUERY_TIME_RANGE_MINUTES配置查询时间范围
+    const timeRange = config.get('task.query_time_range_minutes') || TASK_INTERVAL_MINUTES;
     
     // 爬取反馈数据并直接推送
     console.log(`开始爬取兔小巢反馈数据并推送（时间范围: ${timeRange}分钟）...`);

@@ -51,6 +51,11 @@ RUN npm config set @tencent:registry https://mirrors.tencent.com/npm/ && \
 # 复制项目文件到工作目录
 COPY . .
 
+# 确保config.template.json存在（如果没有config.json会使用环境变量）
+RUN if [ -f config.template.json ]; then \
+      echo "配置模板文件已复制"; \
+    fi
+
 # 创建日志文件目录
 RUN mkdir -p /app/logs && \
     mkdir -p /app/data && \

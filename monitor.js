@@ -5,6 +5,18 @@
 require('dotenv').config();
 const { exec, spawn } = require('child_process');
 const { sendAlarmMessage, sendStatusMessage } = require('./utils/wechatRobot');
+const { getConfig } = require('./config_loader');
+
+// 加载配置
+try {
+  const config = getConfig();
+  console.log(`[${new Date().toLocaleString()}] 配置加载成功`);
+  config.printConfig();
+} catch (error) {
+  console.error(`[${new Date().toLocaleString()}] 配置加载失败: ${error.message}`);
+  console.error('请检查 config.json 文件或环境变量配置');
+  process.exit(1);
+}
 
 // 监控频率（分钟）
 const MONITOR_INTERVAL_MINUTES = 5;
