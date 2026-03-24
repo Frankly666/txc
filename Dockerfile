@@ -65,7 +65,7 @@ HEALTHCHECK --interval=5m --timeout=30s --start-period=2m --retries=3 \
   CMD node /app/healthcheck.js || exit 1
 
 # 设置默认命令（使用pm2启动监控服务并配置日志输出）
-CMD ["pm2-runtime", "scheduledtask.js", "--name", "tuxiaochao-scheduler", "--log", "/app/logs/scheduler-output.log", "--error", "/app/logs/scheduler-error.log"]
+CMD ["pm2-runtime", "scheduledtask.js", "--name", "tuxiaochao-scheduler"]
 
 # 暴露相关端口（如果有需要）
 EXPOSE 3000

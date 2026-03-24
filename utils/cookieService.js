@@ -127,7 +127,7 @@ async function loginAndGetCookies() {
     // 访问兔小巢登录页面
     await page.goto(CONSTANTS.tuxiaonengLoginUrl, {
       timeout: 60000,
-      waitUntil: 'load',
+      waitUntil: 'domcontentloaded',
     });
 
     // 等待登录框加载完成
