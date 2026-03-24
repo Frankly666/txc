@@ -1,28 +1,30 @@
 /**
- * ui 自动化测试所需常量
+ * 集中管理所有环境变量和常量配置
+ * 非敏感配置提供默认值，敏感凭据必须通过环境变量注入
  */
 const CONSTANTS = {
-  // 正常访问QQ会员页面所需 ua
-  qqvipNeededUserAgent: 'Mozilla/5.0 (Linux; Android 7.0; VKY-AL00 Build/HUAWEIVKY-AL00; wv) AppleWebKit/537.36 (KHTML, like Gecko) Version/4.0 Chrome/66.0.3359.126 MQQBrowser/6.2 TBS/044502 Mobile Safari/537.36 V1_AND_SQ_8.9.7_0_RDM_B QQ/8.0.0.1206 NetType/WIFI WebP/0.3.0 Pixel/1440 StatusBarHeight/96',
-
-  // qq 登录页面
-  loginUrl: 'https://ui.ptlogin2.qq.com/cgi-bin/login?hide_title_bar=1&style=9&no_verifyimg=1&link_target=blank&appid=8000212&target=top&daid=18&s_url=https%3A%2F%2Fclub.vip.qq.com%2Fqqvip%2Fbenefits%2Fhome',
-
-  // 测试用 qq 号码
+  // QQ凭据 — 必须通过环境变量注入，无默认值
   testQQNumber: process.env.TEST_QQ_NUMBER || '',
-
-  // 测试用 qq 密码
   testQQPassword: process.env.TEST_QQ_PASSWORD || '',
 
-  // 默认页面尺寸
-  defaultViewport: { width: 400, height: 700 },
+  // 定时任务间隔（分钟）
+  taskIntervalMinutes: parseInt(process.env.TASK_INTERVAL_MINUTES || '15', 10),
 
-  // chrome 的默认安装路径
-  chromeDefaultExecutablePath: '/usr/bin/google-chrome',
+  // 数据查询时间范围（分钟）
+  queryTimeRangeMinutes: parseInt(process.env.QUERY_TIME_RANGE_MINUTES || '30', 10),
 
-  // 兔小巢的登陆页面
+  // 混元API密钥
+  hunyuanApiKey: process.env.HUNYUAN_API_KEY || '',
+
+  // 兔小巢的登录页面
   tuxiaonengLoginUrl: 'https://txc.qq.com/login.html',
-
 };
+
+// 启动校验：缺少关键凭据时快速报错
+if (!CONSTANTS.testQQNumber || !CONSTANTS.testQQPassword) {
+  console.error('❌ 关键环境变量未配置！请设置 TEST_QQ_NUMBER 和 TEST_QQ_PASSWORD');
+  console.error('   TEST_QQ_NUMBER:', CONSTANTS.testQQNumber ? '✅ 已配置' : '❌ 未配置');
+  console.error('   TEST_QQ_PASSWORD:', CONSTANTS.testQQPassword ? '✅ 已配置' : '❌ 未配置');
+}
 
 module.exports = CONSTANTS;

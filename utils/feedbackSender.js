@@ -4,7 +4,7 @@
  */
 const axios = require('axios');
 const fs = require('fs');
-const path = require('path');
+const { ensureDir, SENT_RECORDS_PATH } = require('./shared');
 
 /**
  * ifeedback反馈数据发送类
@@ -18,7 +18,7 @@ class FeedbackSender {
   constructor(appName = 'qqvip', apiUrl = 'http://ifeedback.woa.com/feedback_backend/post_data') {
     this.appName = appName;
     this.apiUrl = apiUrl;
-    this.sentRecordsPath = path.join(__dirname, '../data/sent_feedback_records.json');
+    this.sentRecordsPath = SENT_RECORDS_PATH;
     this.sentFeedbackRecords = []; // 改为数组，存储 {id, timestamp} 对象
     this.loadSentRecords();
   }
@@ -30,10 +30,7 @@ class FeedbackSender {
   loadSentRecords() {
     try {
       // 确保目录存在
-      const dir = path.dirname(this.sentRecordsPath);
-      if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
-      }
+      ensureDir(require('path').dirname(this.sentRecordsPath));
       
       // 读取已发送记录
       if (fs.existsSync(this.sentRecordsPath)) {

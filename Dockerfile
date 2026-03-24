@@ -55,8 +55,6 @@ COPY . .
 RUN mkdir -p /app/logs && \
     mkdir -p /app/data && \
     mkdir -p /app/screenshot && \
-    touch /app/monitor.log && \
-    touch /app/task.log && \
     # 确保权限正确
     chmod -R 777 /app/logs && \
     chmod -R 777 /app/data && \
@@ -67,7 +65,7 @@ HEALTHCHECK --interval=5m --timeout=30s --start-period=2m --retries=3 \
   CMD node /app/healthcheck.js || exit 1
 
 # 设置默认命令（使用pm2启动监控服务并配置日志输出）
-CMD ["pm2-runtime", "monitor.js", "--name", "tuxiaochao-monitor", "--log", "/app/logs/monitor-output.log", "--error", "/app/logs/monitor-error.log"]
+CMD ["pm2-runtime", "scheduledtask.js", "--name", "tuxiaochao-scheduler", "--log", "/app/logs/scheduler-output.log", "--error", "/app/logs/scheduler-error.log"]
 
 # 暴露相关端口（如果有需要）
 EXPOSE 3000

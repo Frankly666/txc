@@ -14,12 +14,11 @@ const HEALTH_CHECK_CONFIG = {
   MAX_SILENT_MINUTES: 60,
   // 日志文件路径
   LOG_FILES: [
-    '/app/logs/monitor-output.log',
-    '/app/logs/monitor-error.log'
+    '/app/logs/scheduler-output.log',
+    '/app/logs/scheduler-error.log'
   ],
   // 关键文件路径
   CRITICAL_FILES: [
-    '/app/monitor.js',
     '/app/scheduledTask.js',
     '/app/utils/tuxiaochaoLogin.js'
   ]
@@ -75,10 +74,10 @@ function checkProcessStatus() {
     const result = execSync('pm2 jlist', { encoding: 'utf8' });
     const processes = JSON.parse(result);
     
-    const monitorProcess = processes.find(p => p.name === 'tuxiaochao-monitor');
-    
+    const monitorProcess = processes.find(p => p.name === 'tuxiaochao-scheduler');
+
     if (!monitorProcess) {
-      console.error('未找到tuxiaochao-monitor进程');
+      console.error('未找到tuxiaochao-scheduler进程');
       return false;
     }
     
