@@ -257,3 +257,183 @@ scheduledtask.js
 | 修改数据转换逻辑 | `utils/dataTransformer.js` → `transformItem()` |
 | 修改登录流程（页面结构变化） | `utils/cookieService.js` → `loginAndGetCookies()` |
 | 添加新的数据源 | 参考 `txcCrawler.js` 模式新建 crawler，在编排层 `tuxiaochaoLogin.js` 集成 |
+
+## TKEx-CSIG K8s 生产部署
+
+### 前置条件
+
+1. **csighub 镜像仓库账号** — 需要有 `csighub.tencentyun.com/franklynxu/txc_get_data` 仓库的推送权限
+2. **TKEx-CSIG 业务权限** — 需要有「兔小巢反馈数据获取」业务 (`prjzsz5s`) 的操作权限
+3. **构建工具** — 本地安装 podman 或 docker（Mac 上推荐 podman，因为构建脚本使用 podman）
+4. **QQ 测试账号** — 用于登录兔小巢的 QQ 账号和密码
+
+### Step 1: 构建并推送镜像
+
+```bash
+# 登录镜像仓库（首次需要）
+podman login csighub.tencentyun.com
+
+# 构建并推送（version-tag 自定义，建议包含版本号和架构）
+./build-and-push.sh v2.0.1-fix-logging-amd64
+```
+
+脚本会自动：
+- 以 `linux/amd64` 架构构建 Docker 镜像
+- 同时打上指定 tag 和 `latest` tag
+- 推送到 `csighub.tencentyun.com/franklynxu/txc_get_data`
+
+> **注意**：TKEx K8s 节点为 AMD64 架构，Mac M 系列芯片必须指定 `--platform linux/amd64` 交叉编译，构建脚本已处理此问题。
+
+### Step 2: 在 TKEx 控制台配置环境变量
+
+路径：**TKEx-CSIG 控制台** → 业务管理 → 兔小巢反馈数据获取 → txc-to-feedback → 详情 → 容器配置 → 环境变量
+
+必须配置以下环境变量（在 K8s 工作负载的容器环境变量中设置）：
+
+| 变量名 | 必填 | 默认值 | 说明 |
+|--------|------|--------|------|
+| `TEST_QQ_NUMBER` | **是** | *(无)* | QQ 登录账号，用于 Puppeteer 自动登录兔小巢 |
+| `TEST_QQ_PASSWORD` | **是** | *(无)* | QQ 登录密码 |
+| `TASK_INTERVAL_MINUTES` | 否 | `15` | 定时任务执行间隔（分钟） |
+| `QUERY_TIME_RANGE_MINUTES` | 否 | `30` | 每次查询最近 N 分钟的反馈数据 |
+| `HUNYUAN_API_KEY` | 否 | `''` | 混元 API 密钥（预留，暂未使用） |
+
+> **重要**：`TEST_QQ_NUMBER` 和 `TEST_QQ_PASSWORD` 缺失会导致服务启动时打印错误日志，且无法完成 Cookie 登录流程。建议通过 K8s Secret 或 TKEx 的加密环境变量来注入密码，避免明文暴露。
+
+以下变量由 Dockerfile 自动设置，**不需要手动配置**：
+
+| 变量名 | 值 | 说明 |
+|--------|------|------|
+| `PUPPETEER_SKIP_CHROMIUM_DOWNLOAD` | `true` | 跳过 Chromium 下载（已内置） |
+| `PUPPETEER_EXECUTABLE_PATH` | `/usr/bin/chromium-browser` | 容器内 Chromium 路径 |
+| `TZ` | `Asia/Shanghai` | 时区 |
+
+### Step 3: 更新镜像
+
+路径：**TKEx-CSIG 控制台** → txc-to-feedback → Pod 管理 → **更新镜像**
+
+1. 在「镜像」字段填入新推送的完整镜像地址，例如：
+   ```
+   csighub.tencentyun.com/franklynxu/txc_get_data:v2.0.1-fix-logging-amd64
+   ```
+2. 点击确认，K8s 会自动滚动更新 Pod
+
+### Step 4: 验证部署
+
+#### 方式一：K8s 日志面板（推荐）
+
+路径：txc-to-feedback → **日志** 标签页 → 选择容器 `txc-crawler`
+
+正常启动应看到如下日志序列：
+
+```
+PM2 log: Launching in no daemon mode
+PM2 log: App [tuxiaochao-scheduler:0] starting in -fork mode-
+PM2 log: App [tuxiaochao-scheduler:0] online
+立即执行一次任务...
+[日期] 开始执行定时任务...
+开始爬取兔小巢反馈数据并推送（时间范围: 30分钟）...
+=== 开始兔小巢数据获取流程 ===
+从文件加载有效的Cookie
+...
+✅ 成功获取N条反馈数据（使用Cookie）
+启动定时任务，将在5分钟后准确执行，之后每5分钟执行一次...
+```
+
+#### 方式二：WebShell 登录容器
+
+路径：txc-to-feedback → Pod 管理 → 点击「登录」→ 选择 `txc-crawler` 容器 → 网页登录
+
+```bash
+# 查看 PM2 进程状态
+pm2 status
+
+# 查看实时日志
+pm2 logs
+
+# 查看最近 50 行日志（非阻塞）
+pm2 logs --nostream --lines 50
+
+# 检查 Cookie 缓存是否存在
+ls -la /app/data/
+
+# 检查 Cookie 是否有效（查看 expiresAt 时间戳）
+cat /app/data/txc_cookies.json | head -5
+
+# 手动触发一次任务（调试用）
+node -e "require('./utils/tuxiaochaoLogin').crawlAndStoreFeedback(30).then(r => console.log(r))"
+```
+
+## 日志与运维
+
+### K8s 日志说明
+
+- K8s 只收集容器的 **stdout/stderr** 输出
+- `pm2-runtime` 默认将所有日志输出到 stdout/stderr（Dockerfile CMD 中**不能**加 `--log` / `--error` 参数，否则日志会重定向到容器内文件，K8s 无法采集）
+- 日志面板路径：TKEx 控制台 → txc-to-feedback → **日志** 标签页
+
+### 持久化数据（PVC 挂载）
+
+K8s 部署使用 StatefulSetPlus + PVC，以下目录的数据在 Pod 重建后会保留：
+
+| 容器路径 | 内容 | 说明 |
+|----------|------|------|
+| `/app/data/` | `txc_cookies.json`、`sent_feedback_records.json` | Cookie 缓存和去重记录，Pod 重建后保留 |
+| `/app/logs/` | PM2 日志文件 | 仅用于容器内调试，K8s 日志面板不依赖此目录 |
+
+### 关键地址汇总
+
+| 资源 | 地址 |
+|------|------|
+| 镜像仓库 (csighub) | `csighub.tencentyun.com/franklynxu/txc_get_data` |
+| TKEx 业务控制台 | `https://kubernetes.woa.com/v4/projects/prjzsz5s/workload-sets` |
+| TKEx 工作负载详情 | `https://kubernetes.woa.com/v4/projects/prjzsz5s/workloads/cls-ixvinumy/ns-prjzsz5s-1549466-production/StatefulSetPlus/txc-to-feedback` |
+| WebShell 登录 | TKEx 控制台 → txc-to-feedback → Pod 管理 → 登录 |
+| 兔小巢管理后台 | `https://txc.qq.com/dashboard/admins` |
+| ifeedback 反馈平台 | `http://ifeedback.woa.com/detail?app_id=907` |
+| Git 仓库 | `https://github.com/Frankly666/txc.git` (分支: `refactor/slim-txc-crawler`) |
+
+## 踩坑记录
+
+### 1. K8s 日志不可见
+
+**现象**：Pod 日志面板只能看到 error 级别日志，`console.log` 的正常输出全部丢失。
+
+**原因**：Dockerfile CMD 中使用了 `--log /app/logs/xxx.log --error /app/logs/xxx.log` 参数，将 pm2-runtime 的输出重定向到容器内文件。K8s 只采集 stdout/stderr，无法读取容器内文件。
+
+**解决**：Dockerfile CMD 移除 `--log` 和 `--error` 参数：
+```dockerfile
+# 错误 ❌
+CMD ["pm2-runtime", "scheduledtask.js", "--name", "tuxiaochao-scheduler", "--log", "/app/logs/output.log", "--error", "/app/logs/error.log"]
+
+# 正确 ✅
+CMD ["pm2-runtime", "scheduledtask.js", "--name", "tuxiaochao-scheduler"]
+```
+
+### 2. Puppeteer 导航超时（60s timeout）
+
+**现象**：`loginAndGetCookies()` 中 `page.goto()` 超时 60 秒。
+
+**原因**：`waitUntil: 'load'` 需要等待所有资源（包括第三方 JS/CSS/图片）加载完成，容器网络环境下部分第三方资源加载极慢。
+
+**解决**：将 `waitUntil` 改为 `'domcontentloaded'`，只等待 DOM 解析完成即可（秒级加载）：
+```js
+// cookieService.js → loginAndGetCookies()
+await page.goto(CONSTANTS.tuxiaonengLoginUrl, {
+  timeout: 60000,
+  waitUntil: 'domcontentloaded',  // 不要用 'load'
+});
+```
+
+### 3. Cookie JSON 文件损坏
+
+**现象**：日志报 `加载Cookie失败: Unexpected end of JSON input`。
+
+**原因**：Pod 异常重启时 Cookie 文件写入不完整。
+
+**解决**：WebShell 登录后删除损坏的缓存文件，服务下次执行时会自动通过浏览器登录重新获取：
+```bash
+rm /app/data/txc_cookies.json
+# 等待下一次定时任务自动重建，或手动重启 PM2 进程
+pm2 restart tuxiaochao-scheduler
+```
