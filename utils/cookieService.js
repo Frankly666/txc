@@ -164,9 +164,9 @@ async function loginAndGetCookies() {
     await loginFrame.type('#p', CONSTANTS.testQQPassword);
     await loginFrame.click('#login_button');
 
-    // 等待登录完成
-    await page.waitForNavigation({ waitUntil: 'networkidle0', timeout: 60000 });
-    await sleep(5000);
+    // 等待登录完成（用 domcontentloaded，容器环境中 networkidle0 会因第三方资源超时）
+    await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 60000 });
+    await sleep(3000);
 
     // 验证跳转
     const currentUrl = await page.url();
