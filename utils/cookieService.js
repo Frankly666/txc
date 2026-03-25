@@ -113,6 +113,7 @@ async function loginAndGetCookies() {
     const page = await browser.newPage();
     await page.setDefaultTimeout(60000);
     await page.setDefaultNavigationTimeout(60000);
+    console.log('[登录流程] 1/10 新页面已创建');
 
     // 禁用图片和 CSS 加载以提高稳定性
     await page.setRequestInterception(true);
@@ -124,61 +125,100 @@ async function loginAndGetCookies() {
       }
     });
 
+    // 监听页面错误和 console
+    page.on('pageerror', (err) => console.error('[登录流程] 页面JS错误:', err.message));
+    page.on('requestfailed', (req) => {
+      if (req.resourceType() !== 'stylesheet' && req.resourceType() !== 'image') {
+        console.warn(`[登录流程] 请求失败: ${req.url()} - ${req.failure()?.errorText}`);
+      }
+    });
+
     // 访问兔小巢登录页面
+    console.log(`[登录流程] 2/10 正在访问登录页: ${CONSTANTS.tuxiaonengLoginUrl}`);
     await page.goto(CONSTANTS.tuxiaonengLoginUrl, {
       timeout: 60000,
       waitUntil: 'domcontentloaded',
     });
+    console.log(`[登录流程] 2/10 登录页加载完成, URL: ${page.url()}`);
 
     // 等待登录框加载完成
+    console.log('[登录流程] 3/10 等待登录框 .login_account ...');
     await page.waitForSelector('.login_account', { visible: true, timeout: 10000 });
+    console.log('[登录流程] 3/10 等待 .login-panel__footer ...');
     await page.waitForSelector('.login-panel__footer', { visible: true, timeout: 10000 });
+    console.log('[登录流程] 3/10 登录框已加载');
 
     // 点击勾选框
+    console.log('[登录流程] 4/10 等待并点击协议勾选框 .t-checkbox__former ...');
     await page.waitForSelector('.t-checkbox__former', { visible: true, timeout: 10000 });
     await sleep(1000);
     await page.evaluate(() => {
       const checkbox = document.querySelector('.t-checkbox__former');
       if (checkbox) checkbox.click();
     });
+    console.log('[登录流程] 4/10 协议勾选框已点击');
 
     // 点击 QQ 登录链接
+    console.log('[登录流程] 5/10 等待并点击 QQ 登录链接 .super_login_qq_link ...');
     await page.waitForSelector('.super_login_qq_link', { visible: true, timeout: 10000 });
     await sleep(1000);
     await page.evaluate(() => {
       const qqLoginLink = document.querySelector('.super_login_qq_link');
       if (qqLoginLink) qqLoginLink.click();
     });
+    console.log('[登录流程] 5/10 QQ 登录链接已点击');
 
     // 等待 QQ 登录 iframe 加载
+    console.log('[登录流程] 6/10 等待 QQ 登录 iframe 加载...');
     await sleep(2000);
     const frames = await page.frames();
+    console.log(`[登录流程] 6/10 页面共有 ${frames.length} 个 frame:`);
+    frames.forEach((f, i) => console.log(`  frame[${i}]: ${f.url()}`));
     const loginFrame = frames.find((frame) => frame.url().includes('ptlogin2.qq.com'));
 
+    if (!loginFrame) {
+      throw new Error('未找到 QQ 登录 iframe (ptlogin2.qq.com)');
+    }
+    console.log(`[登录流程] 6/10 找到 QQ 登录 iframe: ${loginFrame.url()}`);
+
     // 密码登录
+    console.log('[登录流程] 7/10 切换到密码登录 #switcher_plogin ...');
     await loginFrame.waitForSelector('#switcher_plogin', { visible: true, timeout: 10000 });
     await loginFrame.click('#switcher_plogin');
     await sleep(1000);
+    console.log('[登录流程] 7/10 已切换到密码登录模式');
 
+    console.log(`[登录流程] 8/10 输入QQ号 (${CONSTANTS.testQQNumber ? CONSTANTS.testQQNumber.slice(0, 3) + '***' : '空'}) 和密码...`);
     await loginFrame.type('#u', CONSTANTS.testQQNumber);
     await loginFrame.type('#p', CONSTANTS.testQQPassword);
+    console.log('[登录流程] 8/10 点击登录按钮...');
     await loginFrame.click('#login_button');
+    console.log('[登录流程] 8/10 登录按钮已点击，等待页面跳转...');
 
     // 等待登录完成（用 domcontentloaded，容器环境中 networkidle0 会因第三方资源超时）
     await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 60000 });
+    console.log(`[登录流程] 9/10 页面已跳转, 当前URL: ${page.url()}`);
     await sleep(3000);
 
     // 验证跳转
     const currentUrl = await page.url();
+    console.log(`[登录流程] 9/10 最终URL: ${currentUrl}`);
     if (!currentUrl.includes('txc.qq.com/dashboard')) {
-      throw new Error('登录失败：未能跳转到dashboard页面');
+      // 截图保存用于调试
+      try {
+        await page.screenshot({ path: '/app/screenshot/login-failed.png', fullPage: true });
+        console.log('[登录流程] 登录失败截图已保存到 /app/screenshot/login-failed.png');
+      } catch (e) {
+        console.error('[登录流程] 截图失败:', e.message);
+      }
+      throw new Error(`登录失败：未能跳转到dashboard页面，当前URL: ${currentUrl}`);
     }
 
     // 提取并保存 Cookie
     const cookies = await page.cookies();
-    console.log('🍪 获取到新的Cookie，正在保存...');
+    console.log(`[登录流程] 10/10 🍪 获取到 ${cookies.length} 个Cookie，正在保存...`);
     saveCookies(cookies);
-    console.log('✅ Cookie已保存，下次可直接使用HTTP请求获取数据');
+    console.log('[登录流程] 10/10 ✅ Cookie已保存，下次可直接使用HTTP请求获取数据');
 
     return cookies;
   } finally {

@@ -24,10 +24,11 @@ echo "🚀 开始构建 Docker 镜像..."
 echo "📦 镜像名称: ${FULL_IMAGE}"
 echo ""
 
-# 构建镜像
-echo "📦 构建镜像 (AMD64 架构)..."
+# 构建镜像（使用 Docker 格式以兼容 csighub HEALTHCHECK）
+echo "📦 构建镜像 (AMD64 架构, Docker 格式)..."
 podman build \
   --platform linux/amd64 \
+  --format docker \
   -t "${FULL_IMAGE}" \
   -t "${IMAGE_REPO}:latest" \
   -f Dockerfile .
@@ -36,9 +37,9 @@ echo ""
 echo "✅ 镜像构建完成！"
 echo ""
 
-# 推送镜像
+# 推送镜像（使用 Docker v2s2 格式，确保 csighub 正确识别）
 echo "🚀 推送镜像到仓库..."
-podman push "${FULL_IMAGE}"
+podman push --format v2s2 "${FULL_IMAGE}"
 
 echo ""
 echo "✅ 推送完成！"
