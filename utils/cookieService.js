@@ -191,18 +191,81 @@ async function loginAndGetCookies() {
     console.log(`[登录流程] 8/10 输入QQ号 (${CONSTANTS.testQQNumber ? CONSTANTS.testQQNumber.slice(0, 3) + '***' : '空'}) 和密码...`);
     await loginFrame.type('#u', CONSTANTS.testQQNumber);
     await loginFrame.type('#p', CONSTANTS.testQQPassword);
+
+    // 输入完成后，检查输入框实际值
+    const inputCheck = await loginFrame.evaluate(() => {
+      const uInput = document.querySelector('#u');
+      const pInput = document.querySelector('#p');
+      return {
+        qqValue: uInput ? uInput.value : 'input#u不存在',
+        pwdLength: pInput ? pInput.value.length : -1,
+      };
+    });
+    console.log(`[登录流程] 8/10 输入检查: QQ=${inputCheck.qqValue}, 密码长度=${inputCheck.pwdLength}`);
+
     console.log('[登录流程] 8/10 点击登录按钮...');
+    // 先注册导航监听再点击，防止导航发生太快被错过
+    const navigationPromise = page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 60000 }).catch((err) => {
+      console.warn(`[登录流程] 8/10 waitForNavigation 异常: ${err.message}`);
+      return null;
+    });
     await loginFrame.click('#login_button');
     console.log('[登录流程] 8/10 登录按钮已点击，等待页面跳转...');
 
-    // 等待登录完成（用 domcontentloaded，容器环境中 networkidle0 会因第三方资源超时）
-    await page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 60000 });
-    console.log(`[登录流程] 9/10 页面已跳转, 当前URL: ${page.url()}`);
-    await sleep(3000);
+    // 点击后等 5 秒，截图 + 检查 iframe 状态
+    await sleep(5000);
+    console.log(`[登录流程] 8/10 点击登录5秒后, 主页面URL: ${page.url()}`);
+
+    // 截图保存点击登录后的状态
+    try {
+      await page.screenshot({ path: '/app/screenshot/after-login-click.png', fullPage: true });
+      console.log('[登录流程] 8/10 截图已保存: /app/screenshot/after-login-click.png');
+    } catch (e) {
+      console.error('[登录流程] 8/10 截图失败:', e.message);
+    }
+
+    // 检查 iframe 内登录状态（错误信息、验证码等）
+    try {
+      const loginStatus = await loginFrame.evaluate(() => {
+        const errMsg = document.querySelector('#err_m');
+        const verifyArea = document.querySelector('#newVcodeArea');
+        const tcaptcha = document.querySelector('#tcaptcha_iframe');
+        const loginBtn = document.querySelector('#login_button');
+        return {
+          errorMsg: errMsg ? errMsg.textContent.trim() : null,
+          errorVisible: errMsg ? window.getComputedStyle(errMsg).display !== 'none' : false,
+          hasVerifyCode: !!(verifyArea && window.getComputedStyle(verifyArea).display !== 'none'),
+          hasTcaptcha: !!tcaptcha,
+          loginBtnText: loginBtn ? loginBtn.value || loginBtn.textContent : null,
+          iframeUrl: window.location.href,
+        };
+      });
+      console.log(`[登录流程] 8/10 iframe登录状态: ${JSON.stringify(loginStatus)}`);
+    } catch (evalErr) {
+      console.warn(`[登录流程] 8/10 iframe状态检测失败（可能已跳转）: ${evalErr.message}`);
+    }
+
+    // 列出当前所有 frames
+    const currentFrames = page.frames();
+    console.log(`[登录流程] 8/10 当前 ${currentFrames.length} 个frame:`);
+    currentFrames.forEach((f, i) => console.log(`  frame[${i}]: ${f.url()}`));
+
+    // 等待首次导航完成
+    console.log('[登录流程] 9/10 等待 navigationPromise 完成...');
+    await navigationPromise;
+    console.log(`[登录流程] 9/10 首次跳转完成, URL: ${page.url()}`);
+
+    // QQ 登录会经历多次跳转 (graph.qq.com → callback → dashboard)，等待最终落地
+    const maxWait = 30000;
+    const startTime = Date.now();
+    while (!page.url().includes('txc.qq.com/dashboard') && Date.now() - startTime < maxWait) {
+      console.log(`[登录流程] 9/10 等待最终跳转... 当前URL: ${page.url()}`);
+      await sleep(2000);
+    }
+    console.log(`[登录流程] 9/10 最终URL: ${page.url()}`);
 
     // 验证跳转
     const currentUrl = await page.url();
-    console.log(`[登录流程] 9/10 最终URL: ${currentUrl}`);
     if (!currentUrl.includes('txc.qq.com/dashboard')) {
       // 截图保存用于调试
       try {
@@ -211,6 +274,10 @@ async function loginAndGetCookies() {
       } catch (e) {
         console.error('[登录流程] 截图失败:', e.message);
       }
+      // 最后再打印一次所有 cookie，帮助判断
+      const failCookies = await page.cookies();
+      console.log(`[登录流程] 登录失败时共有 ${failCookies.length} 个cookie:`);
+      failCookies.forEach((c) => console.log(`  ${c.name}=${c.value.slice(0, 20)}... domain=${c.domain}`));
       throw new Error(`登录失败：未能跳转到dashboard页面，当前URL: ${currentUrl}`);
     }
 
