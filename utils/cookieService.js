@@ -2,7 +2,9 @@
  * Cookie 管理服务
  * 负责 Cookie 的加载、验证、保存和浏览器登录获取
  */
-const puppeteer = require('puppeteer');
+const puppeteer = require('puppeteer-extra');
+const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+puppeteer.use(StealthPlugin());
 const fs = require('fs');
 const CONSTANTS = require('../constants/index');
 const { sleep, ensureDir, COOKIE_PATH, DATA_DIR } = require('./shared');
@@ -113,30 +115,16 @@ async function loginAndGetCookies() {
 
     // 反检测：设置正常的 User-Agent（去掉 HeadlessChrome 标识）
     await page.setUserAgent(
-      'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+      'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
     );
 
-    // 反检测：隐藏 navigator.webdriver 特征
-    await page.evaluateOnNewDocument(() => {
-      Object.defineProperty(navigator, 'webdriver', { get: () => false });
-      // 伪造 plugins 和 languages
-      Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
-      Object.defineProperty(navigator, 'languages', { get: () => ['zh-CN', 'zh', 'en'] });
-      // 覆盖 chrome.runtime 检测
-      window.chrome = { runtime: {} };
-      // 覆盖 permissions 检测
-      const originalQuery = window.navigator.permissions.query;
-      window.navigator.permissions.query = (parameters) =>
-        parameters.name === 'notifications'
-          ? Promise.resolve({ state: Notification.permission })
-          : originalQuery(parameters);
-    });
-    console.log('[登录流程] 1/10 新页面已创建');
+    // stealth 插件已自动处理 webdriver/plugins/languages/chrome.runtime 等反检测
+    console.log('[登录流程] 1/10 新页面已创建（stealth 模式）');
 
-    // 禁用图片和 CSS 加载以提高稳定性
+    // 禁用图片加载以提高速度（保留 CSS 和 JS，避免影响登录逻辑）
     await page.setRequestInterception(true);
     page.on('request', (req) => {
-      if (req.resourceType() === 'stylesheet' || req.resourceType() === 'image') {
+      if (req.resourceType() === 'image') {
         req.abort();
       } else {
         req.continue();
