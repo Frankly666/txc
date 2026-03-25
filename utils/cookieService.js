@@ -67,9 +67,9 @@ async function loginAndGetCookies() {
   console.log('⚠️  Cookie失效或不存在，开始浏览器登录流程...');
 
   const browser = await puppeteer.launch({
-    headless: true,
-    defaultViewport: null,
-    ignoreDefaultArgs: ['--disable-extensions'],
+    headless: 'new',
+    defaultViewport: { width: 1366, height: 768 },
+    ignoreDefaultArgs: ['--enable-automation'],
     args: [
       '--no-sandbox',
       '--disable-setuid-sandbox',
@@ -77,7 +77,6 @@ async function loginAndGetCookies() {
       '--disable-accelerated-2d-canvas',
       '--no-first-run',
       '--disable-gpu',
-      '--disable-web-security',
       '--disable-features=VizDisplayCompositor',
       '--disable-background-timer-throttling',
       '--disable-backgrounding-occluded-windows',
@@ -85,7 +84,6 @@ async function loginAndGetCookies() {
       '--disable-ipc-flooding-protection',
       '--memory-pressure-off',
       '--max_old_space_size=4096',
-      '--disable-extensions-except',
       '--disable-plugins',
       '--disable-default-apps',
       '--disable-sync',
@@ -97,13 +95,12 @@ async function loginAndGetCookies() {
       '--disable-hang-monitor',
       '--disable-popup-blocking',
       '--disable-prompt-on-repost',
-      '--disable-web-resources',
       '--metrics-recording-only',
       '--no-default-browser-check',
       '--safebrowsing-disable-auto-update',
-      '--enable-automation',
       '--password-store=basic',
       '--use-mock-keychain',
+      '--window-size=1366,768',
     ],
     timeout: 120000,
     protocolTimeout: 120000,
@@ -113,6 +110,27 @@ async function loginAndGetCookies() {
     const page = await browser.newPage();
     await page.setDefaultTimeout(60000);
     await page.setDefaultNavigationTimeout(60000);
+
+    // 反检测：设置正常的 User-Agent（去掉 HeadlessChrome 标识）
+    await page.setUserAgent(
+      'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
+    );
+
+    // 反检测：隐藏 navigator.webdriver 特征
+    await page.evaluateOnNewDocument(() => {
+      Object.defineProperty(navigator, 'webdriver', { get: () => false });
+      // 伪造 plugins 和 languages
+      Object.defineProperty(navigator, 'plugins', { get: () => [1, 2, 3, 4, 5] });
+      Object.defineProperty(navigator, 'languages', { get: () => ['zh-CN', 'zh', 'en'] });
+      // 覆盖 chrome.runtime 检测
+      window.chrome = { runtime: {} };
+      // 覆盖 permissions 检测
+      const originalQuery = window.navigator.permissions.query;
+      window.navigator.permissions.query = (parameters) =>
+        parameters.name === 'notifications'
+          ? Promise.resolve({ state: Notification.permission })
+          : originalQuery(parameters);
+    });
     console.log('[登录流程] 1/10 新页面已创建');
 
     // 禁用图片和 CSS 加载以提高稳定性
