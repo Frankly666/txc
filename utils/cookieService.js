@@ -189,8 +189,15 @@ async function loginAndGetCookies() {
     console.log('[登录流程] 7/10 已切换到密码登录模式');
 
     console.log(`[登录流程] 8/10 输入QQ号 (${CONSTANTS.testQQNumber ? CONSTANTS.testQQNumber.slice(0, 3) + '***' : '空'}) 和密码...`);
-    await loginFrame.type('#u', CONSTANTS.testQQNumber);
-    await loginFrame.type('#p', CONSTANTS.testQQPassword);
+
+    // 先清空输入框，再逐字符输入（模拟真实键盘事件触发 JS 加密处理）
+    await loginFrame.click('#u', { clickCount: 3 }); // 选中已有内容
+    await loginFrame.type('#u', CONSTANTS.testQQNumber, { delay: 50 });
+    await sleep(500);
+
+    await loginFrame.click('#p', { clickCount: 3 });
+    await loginFrame.type('#p', CONSTANTS.testQQPassword, { delay: 50 });
+    await sleep(500);
 
     // 输入完成后，检查输入框实际值
     const inputCheck = await loginFrame.evaluate(() => {
@@ -199,9 +206,16 @@ async function loginAndGetCookies() {
       return {
         qqValue: uInput ? uInput.value : 'input#u不存在',
         pwdLength: pInput ? pInput.value.length : -1,
+        // 检查密码是否被加密处理（QQ登录页可能有隐藏字段存储加密密码）
+        hiddenFields: Array.from(document.querySelectorAll('input[type="hidden"]')).map(el => ({
+          name: el.name || el.id,
+          hasValue: el.value.length > 0,
+          valueLength: el.value.length,
+        })),
       };
     });
     console.log(`[登录流程] 8/10 输入检查: QQ=${inputCheck.qqValue}, 密码长度=${inputCheck.pwdLength}`);
+    console.log(`[登录流程] 8/10 隐藏字段: ${JSON.stringify(inputCheck.hiddenFields)}`);
 
     console.log('[登录流程] 8/10 点击登录按钮...');
     // 先注册导航监听再点击，防止导航发生太快被错过
@@ -209,8 +223,29 @@ async function loginAndGetCookies() {
       console.warn(`[登录流程] 8/10 waitForNavigation 异常: ${err.message}`);
       return null;
     });
-    await loginFrame.click('#login_button');
-    console.log('[登录流程] 8/10 登录按钮已点击，等待页面跳转...');
+    // 用 evaluate 在 iframe 内直接触发点击，更可靠
+    await loginFrame.evaluate(() => {
+      const btn = document.querySelector('#login_button');
+      if (btn) btn.click();
+    });
+    console.log('[登录流程] 8/10 登录按钮已点击（evaluate方式），等待页面跳转...');
+
+    // 等 2 秒后检查 iframe 内是否有网络请求发出（看 form action）
+    await sleep(2000);
+    try {
+      const postClickCheck = await loginFrame.evaluate(() => {
+        const errMsg = document.querySelector('#err_m');
+        return {
+          errorMsg: errMsg ? errMsg.textContent.trim() : null,
+          errorVisible: errMsg ? (window.getComputedStyle(errMsg).display !== 'none' && errMsg.textContent.trim() !== '') : false,
+          pageTitle: document.title,
+          url: window.location.href,
+        };
+      });
+      console.log(`[登录流程] 8/10 点击2秒后iframe状态: ${JSON.stringify(postClickCheck)}`);
+    } catch (e) {
+      console.log(`[登录流程] 8/10 点击后iframe已跳转（无法evaluate）: ${e.message}`);
+    }
 
     // 点击后等 5 秒，截图 + 检查 iframe 状态
     await sleep(5000);
